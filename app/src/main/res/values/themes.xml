@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Main app theme applied after the splash -->
+    <style name="Theme.MyChemistPOS" parent="Theme.SplashScreen">
+        <!-- The theme to switch to once the splash finishes -->
+        <item name="postSplashScreenTheme">@style/Theme.MyChemistPOS.Main</item>
+        <!-- Icon shown on the splash screen (uses your adaptive icon) -->
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
+        <!-- Background color of the splash screen -->
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <!-- Duration the icon is animated (0 = static) -->
+        <item name="windowSplashScreenAnimationDuration">300</item>
+    </style>
+
+    <!-- The real app theme used throughout the app -->
+    <style name="Theme.MyChemistPOS.Main" parent="android:Theme.Material.Light.NoActionBar" />
+
+</resources>

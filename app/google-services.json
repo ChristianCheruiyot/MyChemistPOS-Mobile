@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "348777082578",
+    "project_id": "my-chemist-pos",
+    "storage_bucket": "my-chemist-pos.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:348777082578:android:127a3fe949d3b23f38870b",
+        "android_client_info": {
+          "package_name": "com.habit.mychemistpos"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "348777082578-6ga7v31vuldsngtvjsa0m8jge7ek6fug.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA9-qfyjQ_cG77BKyzG6VONVAuVBzVeA9k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "348777082578-6ga7v31vuldsngtvjsa0m8jge7ek6fug.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
