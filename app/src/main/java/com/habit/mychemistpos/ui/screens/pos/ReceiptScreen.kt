@@ -176,10 +176,25 @@ fun ReceiptScreen(
                             Text("Paid (${sale.paymentMethod.displayName})", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
                             Text(formatCurrency(sale.amountPaid), style = MaterialTheme.typography.bodyMedium)
                         }
+                        if (sale.notes.isNotBlank()) {
+                            Spacer(Modifier.height(Dimens.SpacingXs))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Reference", style = MaterialTheme.typography.bodySmall, color = TextHint)
+                                Text(sale.notes, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = TextSecondary)
+                            }
+                        }
+                        if (!sale.prescriptionRef.isNullOrBlank()) {
+                            Spacer(Modifier.height(Dimens.SpacingXs))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Rx Ref", style = MaterialTheme.typography.bodySmall, color = TextHint)
+                                Text(sale.prescriptionRef!!, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                            }
+                        }
                         if (sale.change > 0) {
+                            Spacer(Modifier.height(Dimens.SpacingXs))
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text("Change", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
-                                Text(formatCurrency(sale.change), style = MaterialTheme.typography.bodyMedium)
+                                Text(formatCurrency(sale.change), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = Primary)
                             }
                         }
 

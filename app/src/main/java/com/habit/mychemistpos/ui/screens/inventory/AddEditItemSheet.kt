@@ -63,6 +63,7 @@ import com.habit.mychemistpos.ui.components.ChemistPrimaryButton
 import com.habit.mychemistpos.ui.components.ChemistTextField
 import com.habit.mychemistpos.ui.components.ProductImage
 import com.habit.mychemistpos.ui.components.ChemistCard
+import com.habit.mychemistpos.ui.components.ConfirmDialog
 import com.habit.mychemistpos.ui.theme.Dimens
 import com.habit.mychemistpos.ui.theme.PageBackground
 import com.habit.mychemistpos.ui.theme.Primary
@@ -76,6 +77,11 @@ import com.habit.mychemistpos.ui.theme.Danger
 import com.habit.mychemistpos.ui.theme.DangerTint
 import java.time.LocalDate
 
+private fun formatInitialPrice(value: Double): String {
+    if (value <= 0.0) return ""
+    return if (value % 1.0 == 0.0) value.toLong().toString() else value.toString()
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddEditItemSheet(
@@ -87,13 +93,14 @@ fun AddEditItemSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val isEditing = item != null
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
 
     // ── Form State ──────────────────────────────────────────────────────────
     var name by remember { mutableStateOf(item?.name ?: "") }
     var category by remember { mutableStateOf(item?.category ?: "") }
     var batchNumber by remember { mutableStateOf(item?.batchNumber ?: "") }
-    var buyingPrice by remember { mutableStateOf(if (item != null && item.buyingPrice > 0) item.buyingPrice.toString() else "") }
-    var sellingPrice by remember { mutableStateOf(if (item != null && item.sellingPrice > 0) item.sellingPrice.toString() else "") }
+    var buyingPrice by remember { mutableStateOf(if (item != null && item.buyingPrice > 0) formatInitialPrice(item.buyingPrice) else "") }
+    var sellingPrice by remember { mutableStateOf(if (item != null && item.sellingPrice > 0) formatInitialPrice(item.sellingPrice) else "") }
     var quantity by remember { mutableStateOf(if (item != null) item.quantity.toString() else "") }
     var unit by remember { mutableStateOf(item?.unit ?: "pcs") }
     var reorderLevel by remember { mutableStateOf(item?.reorderLevel?.toString() ?: "10") }
@@ -334,6 +341,49 @@ fun AddEditItemSheet(
                     )
                 }
 
+                // Quick Margin Presets
+                if (buyVal > 0.0) {
+                    Spacer(Modifier.height(Dimens.SpacingS))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.SpacingS),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Set Margin:",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = TextSecondary
+                        )
+                        listOf(
+                            "+20%" to 1.20,
+                            "+30%" to 1.30,
+                            "+50%" to 1.50,
+                            "+100%" to 2.00
+                        ).forEach { (label, multiplier) ->
+                            val targetPrice = Math.round(buyVal * multiplier).toDouble()
+                            val isSelected = sellVal == targetPrice
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(if (isSelected) Primary.copy(alpha = 0.12f) else PageBackground)
+                                    .border(1.dp, if (isSelected) Primary else Border, RoundedCornerShape(6.dp))
+                                    .clickable {
+                                        sellingPrice = if (targetPrice % 1.0 == 0.0) targetPrice.toLong().toString() else targetPrice.toString()
+                                    }
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) Primary else TextPrimary
+                                )
+                            }
+                        }
+                    }
+                }
+
                 // Dynamic Profit Margin calculation block
                 if (buyVal > 0.0 && sellVal > 0.0) {
                     Spacer(Modifier.height(Dimens.SpacingM))
@@ -563,7 +613,7 @@ fun AddEditItemSheet(
             if (isEditing && onDelete != null) {
                 androidx.compose.material3.TextButton(
                     onClick = {
-                        onDelete(item!!)
+                        showDeleteConfirmation = true
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -572,6 +622,21 @@ fun AddEditItemSheet(
                         color = Danger,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
+                    )
+                }
+
+                if (showDeleteConfirmation) {
+                    ConfirmDialog(
+                        title = "Delete Item",
+                        message = "Are you sure you want to delete '${item?.name}'? This action cannot be undone.",
+                        confirmText = "Delete",
+                        isDestructive = true,
+                        onConfirm = {
+                            showDeleteConfirmation = false
+                            onDelete(item!!)
+                            onDismiss()
+                        },
+                        onDismiss = { showDeleteConfirmation = false }
                     )
                 }
             }

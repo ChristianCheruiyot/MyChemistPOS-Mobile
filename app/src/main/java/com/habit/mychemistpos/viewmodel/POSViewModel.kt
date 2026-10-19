@@ -24,15 +24,20 @@ data class POSUiState(
     val allProducts: List<InventoryItem> = emptyList(),
     val selectedCategory: String = "All",
     val discount: Double = 0.0,
+    val discountInput: String = "",
     val paymentMethod: PaymentMethod = PaymentMethod.CASH,
     val amountPaid: Double = 0.0,
+    val amountPaidInput: String = "",
+    val mpesaRef: String = "",
+    val prescriptionRef: String = "",
     val isProcessing: Boolean = false,
     val receiptSaleId: String? = null, // Set when sale succeeds to show receipt
 ) {
     val subtotal: Double get() = cartItems.sumOf { it.subtotal }
-    val total: Double get() = subtotal - discount
-    val change: Double get() = if (amountPaid > total) amountPaid - total else 0.0
+    val total: Double get() = (subtotal - discount).coerceAtLeast(0.0)
+    val change: Double get() = if (paymentMethod == PaymentMethod.CASH && amountPaid > total) amountPaid - total else 0.0
     val canCheckout: Boolean get() = cartItems.isNotEmpty() && (paymentMethod == PaymentMethod.CREDIT || amountPaid >= total)
+    val hasRxItems: Boolean get() = cartItems.any { it.requiresPrescription }
 
     // Filter products based on search and category
     val filteredProducts: List<InventoryItem> get() {
@@ -132,9 +137,12 @@ class POSViewModel @Inject constructor(
             )
         }
         
+        val newSubtotal = currentCart.sumOf { it.subtotal }
+        val newTotal = (newSubtotal - _uiState.value.discount).coerceAtLeast(0.0)
         _uiState.value = _uiState.value.copy(
             cartItems = currentCart,
-            amountPaid = currentCart.sumOf { it.subtotal } - _uiState.value.discount // auto-fill amount paid
+            amountPaid = newTotal,
+            amountPaidInput = formatCleanNumber(newTotal)
         )
     }
 
@@ -146,33 +154,93 @@ class POSViewModel @Inject constructor(
         val currentCart = _uiState.value.cartItems.map {
             if (it.itemId == itemId) it.copy(quantity = newQuantity) else it
         }
+        val newSubtotal = currentCart.sumOf { it.subtotal }
+        val newTotal = (newSubtotal - _uiState.value.discount).coerceAtLeast(0.0)
         _uiState.value = _uiState.value.copy(
             cartItems = currentCart,
-            amountPaid = currentCart.sumOf { it.subtotal } - _uiState.value.discount
+            amountPaid = newTotal,
+            amountPaidInput = formatCleanNumber(newTotal)
         )
     }
 
     fun removeFromCart(itemId: String) {
         val currentCart = _uiState.value.cartItems.filter { it.itemId != itemId }
+        val newSubtotal = currentCart.sumOf { it.subtotal }
+        val newTotal = (newSubtotal - _uiState.value.discount).coerceAtLeast(0.0)
         _uiState.value = _uiState.value.copy(
             cartItems = currentCart,
-            amountPaid = currentCart.sumOf { it.subtotal } - _uiState.value.discount
+            amountPaid = newTotal,
+            amountPaidInput = formatCleanNumber(newTotal)
         )
     }
 
-    fun updateDiscount(discount: Double) {
+    fun onDiscountChange(input: String) {
+        val clean = input.filter { it.isDigit() || it == '.' }
+        val parsed = clean.toDoubleOrNull() ?: 0.0
+        val newTotal = (_uiState.value.subtotal - parsed).coerceAtLeast(0.0)
         _uiState.value = _uiState.value.copy(
-            discount = discount,
-            amountPaid = _uiState.value.subtotal - discount
+            discount = parsed,
+            discountInput = clean,
+            amountPaid = newTotal,
+            amountPaidInput = formatCleanNumber(newTotal)
         )
     }
 
-    fun updateAmountPaid(amount: Double) {
-        _uiState.value = _uiState.value.copy(amountPaid = amount)
+    fun onAmountPaidChange(input: String) {
+        val clean = input.filter { it.isDigit() || it == '.' }
+        val parsed = clean.toDoubleOrNull() ?: 0.0
+        _uiState.value = _uiState.value.copy(
+            amountPaid = parsed,
+            amountPaidInput = clean
+        )
+    }
+
+    fun setExactCash() {
+        val total = _uiState.value.total
+        _uiState.value = _uiState.value.copy(
+            amountPaid = total,
+            amountPaidInput = formatCleanNumber(total)
+        )
+    }
+
+    fun addQuickCash(extra: Double) {
+        val next = _uiState.value.amountPaid + extra
+        _uiState.value = _uiState.value.copy(
+            amountPaid = next,
+            amountPaidInput = formatCleanNumber(next)
+        )
+    }
+
+    fun roundUpCash(nearest: Double) {
+        val total = _uiState.value.total
+        if (total <= 0.0) return
+        val rounded = Math.ceil(total / nearest) * nearest
+        _uiState.value = _uiState.value.copy(
+            amountPaid = rounded,
+            amountPaidInput = formatCleanNumber(rounded)
+        )
+    }
+
+    fun updateMpesaRef(ref: String) {
+        _uiState.value = _uiState.value.copy(mpesaRef = ref)
+    }
+
+    fun updatePrescriptionRef(ref: String) {
+        _uiState.value = _uiState.value.copy(prescriptionRef = ref)
     }
 
     fun setPaymentMethod(method: PaymentMethod) {
-        _uiState.value = _uiState.value.copy(paymentMethod = method)
+        val total = _uiState.value.total
+        _uiState.value = _uiState.value.copy(
+            paymentMethod = method,
+            amountPaid = if (method == PaymentMethod.CREDIT) 0.0 else total,
+            amountPaidInput = if (method == PaymentMethod.CREDIT) "" else formatCleanNumber(total)
+        )
+    }
+
+    private fun formatCleanNumber(value: Double): String {
+        if (value <= 0.0) return ""
+        return if (value % 1.0 == 0.0) value.toLong().toString() else String.format(java.util.Locale.US, "%.2f", value)
     }
 
     fun processSale() {
@@ -184,13 +252,20 @@ class POSViewModel @Inject constructor(
             val user = authRepository.getCurrentUser()
             val state = _uiState.value
             
+            val notes = when {
+                state.paymentMethod == PaymentMethod.MPESA && state.mpesaRef.isNotBlank() -> "M-Pesa: ${state.mpesaRef.trim()}"
+                else -> ""
+            }
+
             val sale = Sale(
                 items = state.cartItems,
                 total = state.subtotal,
                 discount = state.discount,
-                amountPaid = state.amountPaid,
+                amountPaid = if (state.paymentMethod == PaymentMethod.CREDIT) 0.0 else state.amountPaid,
                 paymentMethod = state.paymentMethod,
-                servedBy = user?.name ?: "Unknown",
+                servedBy = user?.name ?: "Pharmacist",
+                prescriptionRef = state.prescriptionRef.ifBlank { null },
+                notes = notes,
                 createdAt = LocalDateTime.now()
             )
             

@@ -50,11 +50,13 @@ data class SaleLineItem(
 
 enum class PaymentMethod {
     CASH,
+    MPESA,
     CREDIT;
 
     val displayName: String
         get() = when (this) {
             CASH -> "Cash"
+            MPESA -> "M-Pesa"
             CREDIT -> "Credit"
         }
 }

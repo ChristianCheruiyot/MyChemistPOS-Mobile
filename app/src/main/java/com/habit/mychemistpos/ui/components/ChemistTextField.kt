@@ -39,7 +39,9 @@ fun ChemistTextField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        label = { Text(label) },
+        label = if (label.isNotBlank()) {
+            { Text(label) }
+        } else null,
         placeholder = if (placeholder.isNotEmpty()) {
             { Text(placeholder, color = TextHint) }
         } else null,

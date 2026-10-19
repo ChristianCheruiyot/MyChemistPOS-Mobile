@@ -49,9 +49,9 @@ fun AddEditSupplierSheet(
     // ── Validation ──────────────────────────────────────────────────────────
     var hasAttemptedSave by remember { mutableStateOf(false) }
     val nameError = hasAttemptedSave && name.isBlank()
-    val emailError = hasAttemptedSave && email.isNotBlank() && !email.contains("@")
-    val phoneError = hasAttemptedSave && phone.isNotBlank() && phone.length < 10
-    val isFormValid = name.isNotBlank()
+    val emailError = hasAttemptedSave && email.isNotBlank() && (!email.contains("@") || !email.contains("."))
+    val phoneError = hasAttemptedSave && phone.isNotBlank() && phone.trim().length < 10
+    val isFormValid = name.isNotBlank() && (email.isBlank() || (email.contains("@") && email.contains("."))) && (phone.isBlank() || phone.trim().length >= 10)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,

@@ -339,6 +339,43 @@ fun PointOfSaleScreen(
                             // Checkout panel
                             item {
                                 ChemistCard {
+                                    if (state.hasRxItems) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(Dimens.ButtonCorner))
+                                                .background(Color(0xFFFEF3C7))
+                                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text("⚠️", style = MaterialTheme.typography.titleMedium)
+                                            Spacer(Modifier.width(8.dp))
+                                            Column {
+                                                Text(
+                                                    "Prescription Item(s) in Cart",
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFF92400E)
+                                                )
+                                                Text(
+                                                    "Verify doctor's prescription before dispensing",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = Color(0xFFB45309)
+                                                )
+                                            }
+                                        }
+                                        Spacer(Modifier.height(Dimens.SpacingM))
+                                        ChemistTextField(
+                                            value = state.prescriptionRef,
+                                            onValueChange = viewModel::updatePrescriptionRef,
+                                            label = "Prescription Ref / Doctor (Optional)",
+                                            placeholder = "e.g., Dr. Kimani / RX-449"
+                                        )
+                                        Spacer(Modifier.height(Dimens.SpacingM))
+                                        HorizontalDivider(color = Border)
+                                        Spacer(Modifier.height(Dimens.SpacingS))
+                                    }
+
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween
@@ -351,11 +388,11 @@ fun PointOfSaleScreen(
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text("Discount", style = MaterialTheme.typography.bodyMedium, color = TextSecondary, modifier = Modifier.weight(1f))
                                         ChemistTextField(
-                                            value = if (state.discount == 0.0) "" else state.discount.toString(),
-                                            onValueChange = { viewModel.updateDiscount(it.toDoubleOrNull() ?: 0.0) },
+                                            value = state.discountInput,
+                                            onValueChange = viewModel::onDiscountChange,
                                             label = "",
                                             placeholder = "0.00",
-                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                             textStyle = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.End),
                                             leadingIcon = { Text("KES", color = TextHint, modifier = Modifier.padding(start = 12.dp)) },
                                             modifier = Modifier.width(130.dp)
@@ -377,12 +414,18 @@ fun PointOfSaleScreen(
 
                                     Spacer(Modifier.height(Dimens.SpacingM))
 
-                                    // Payment Methods
+                                    // Payment Methods (Cash, M-Pesa, Credit)
                                     Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpacingS)) {
                                         PaymentMethodChip(
                                             method = PaymentMethod.CASH,
                                             selected = state.paymentMethod == PaymentMethod.CASH,
                                             onClick = { viewModel.setPaymentMethod(PaymentMethod.CASH) },
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        PaymentMethodChip(
+                                            method = PaymentMethod.MPESA,
+                                            selected = state.paymentMethod == PaymentMethod.MPESA,
+                                            onClick = { viewModel.setPaymentMethod(PaymentMethod.MPESA) },
                                             modifier = Modifier.weight(1f)
                                         )
                                         PaymentMethodChip(
@@ -393,37 +436,86 @@ fun PointOfSaleScreen(
                                         )
                                     }
 
-                                    if (state.paymentMethod == PaymentMethod.CASH) {
-                                        Spacer(Modifier.height(Dimens.SpacingM))
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text("Amount Paid", style = MaterialTheme.typography.bodyMedium, color = TextSecondary, modifier = Modifier.weight(1f))
-                                            ChemistTextField(
-                                                value = if (state.amountPaid == 0.0) "" else state.amountPaid.toString(),
-                                                onValueChange = { viewModel.updateAmountPaid(it.toDoubleOrNull() ?: 0.0) },
-                                                label = "",
-                                                placeholder = "0.00",
-                                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                                textStyle = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.End),
-                                                leadingIcon = { Text("KES", color = TextHint, modifier = Modifier.padding(start = 12.dp)) },
-                                                modifier = Modifier.width(130.dp)
-                                            )
-                                        }
-                                        if (state.change > 0) {
-                                            Spacer(Modifier.height(Dimens.SpacingS))
+                                    // Payment Specific Details
+                                    when (state.paymentMethod) {
+                                        PaymentMethod.CASH -> {
+                                            Spacer(Modifier.height(Dimens.SpacingM))
+                                            // Quick Cash Preset Buttons
                                             Row(
                                                 modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                                             ) {
-                                                Text("Change to give", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
-                                                Text(formatCurrency(state.change), style = MaterialTheme.typography.titleMedium, color = Danger)
+                                                QuickCashChip(text = "Exact", onClick = viewModel::setExactCash, modifier = Modifier.weight(1.2f))
+                                                QuickCashChip(text = "+50", onClick = { viewModel.addQuickCash(50.0) }, modifier = Modifier.weight(1f))
+                                                QuickCashChip(text = "+100", onClick = { viewModel.addQuickCash(100.0) }, modifier = Modifier.weight(1f))
+                                                QuickCashChip(text = "+500", onClick = { viewModel.addQuickCash(500.0) }, modifier = Modifier.weight(1f))
+                                                QuickCashChip(text = "+1000", onClick = { viewModel.addQuickCash(1000.0) }, modifier = Modifier.weight(1.2f))
                                             }
+
+                                            Spacer(Modifier.height(Dimens.SpacingM))
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text("Amount Paid", style = MaterialTheme.typography.bodyMedium, color = TextSecondary, modifier = Modifier.weight(1f))
+                                                ChemistTextField(
+                                                    value = state.amountPaidInput,
+                                                    onValueChange = viewModel::onAmountPaidChange,
+                                                    label = "",
+                                                    placeholder = "0.00",
+                                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                                    textStyle = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.End),
+                                                    leadingIcon = { Text("KES", color = TextHint, modifier = Modifier.padding(start = 12.dp)) },
+                                                    modifier = Modifier.width(130.dp)
+                                                )
+                                            }
+                                            if (state.change > 0) {
+                                                Spacer(Modifier.height(Dimens.SpacingS))
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text("Change to give", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                                                    Text(formatCurrency(state.change), style = MaterialTheme.typography.titleMedium, color = Success, fontWeight = FontWeight.Bold)
+                                                }
+                                            } else if (state.amountPaid > 0 && state.amountPaid < state.total) {
+                                                Spacer(Modifier.height(Dimens.SpacingS))
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween
+                                                ) {
+                                                    Text("Short by", style = MaterialTheme.typography.bodyMedium, color = Danger)
+                                                    Text(formatCurrency(state.total - state.amountPaid), style = MaterialTheme.typography.titleSmall, color = Danger)
+                                                }
+                                            }
+                                        }
+                                        PaymentMethod.MPESA -> {
+                                            Spacer(Modifier.height(Dimens.SpacingM))
+                                            ChemistTextField(
+                                                value = state.mpesaRef,
+                                                onValueChange = viewModel::updateMpesaRef,
+                                                label = "M-Pesa Transaction Code (Optional)",
+                                                placeholder = "e.g., QK8391039"
+                                            )
+                                        }
+                                        PaymentMethod.CREDIT -> {
+                                            Spacer(Modifier.height(Dimens.SpacingM))
+                                            Text(
+                                                text = "Credit sale: Records ${formatCurrency(state.total)} balance to customer's account.",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = TextSecondary
+                                            )
                                         }
                                     }
 
                                     Spacer(Modifier.height(Dimens.SpacingL))
                                     
+                                    val checkoutButtonText = when (state.paymentMethod) {
+                                        PaymentMethod.CREDIT -> "Complete Credit Sale"
+                                        PaymentMethod.MPESA -> "Complete M-Pesa Sale"
+                                        PaymentMethod.CASH -> "Complete Cash Sale"
+                                    }
+
                                     ChemistPrimaryButton(
-                                        text = if (state.paymentMethod == PaymentMethod.CREDIT) "Complete Credit Sale" else "Complete Sale",
+                                        text = checkoutButtonText,
                                         onClick = viewModel::processSale,
                                         enabled = state.canCheckout,
                                         isLoading = state.isProcessing
@@ -600,6 +692,41 @@ private fun PaymentMethodChip(
             text = method.displayName,
             style = MaterialTheme.typography.titleSmall,
             color = if (selected) Color.White else TextPrimary
+        )
+    }
+}
+
+@Composable
+private fun QuickCashChip(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(targetValue = if (isPressed) 0.93f else 1.0f, label = "QuickCashScale")
+
+    Box(
+        modifier = modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0xFFE0F2FE).copy(alpha = 0.7f))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = androidx.compose.foundation.LocalIndication.current,
+                onClick = onClick
+            )
+            .padding(vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = Primary
         )
     }
 }

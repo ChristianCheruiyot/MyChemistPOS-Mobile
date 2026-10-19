@@ -42,13 +42,20 @@ fun AddEditCustomerSheet(
 
     var name by remember { mutableStateOf(customer?.name ?: "") }
     var phone by remember { mutableStateOf(customer?.phone ?: "") }
-    var creditBalance by remember { mutableStateOf(if (customer != null && customer.creditBalance > 0) customer.creditBalance.toString() else "0") }
+    var creditBalance by remember { 
+        mutableStateOf(
+            if (customer != null && customer.creditBalance > 0) {
+                if (customer.creditBalance % 1.0 == 0.0) customer.creditBalance.toLong().toString() else customer.creditBalance.toString()
+            } else "0"
+        ) 
+    }
 
     // ── Validation ──────────────────────────────────────────────────────────
     var hasAttemptedSave by remember { mutableStateOf(false) }
     val nameError = hasAttemptedSave && name.isBlank()
-    val phoneError = hasAttemptedSave && phone.isNotBlank() && phone.length < 10
-    val isFormValid = name.isNotBlank()
+    val phoneError = hasAttemptedSave && phone.isNotBlank() && phone.trim().length < 10
+    val creditError = hasAttemptedSave && creditBalance.isNotBlank() && ((creditBalance.toDoubleOrNull() ?: -1.0) < 0.0)
+    val isFormValid = name.isNotBlank() && (phone.isBlank() || phone.trim().length >= 10) && (creditBalance.isBlank() || (creditBalance.toDoubleOrNull() ?: -1.0) >= 0.0)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -107,7 +114,9 @@ fun AddEditCustomerSheet(
                 onValueChange = { creditBalance = it },
                 label = "Credit Balance (KES)",
                 placeholder = "0",
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                isError = creditError,
+                errorMessage = if (creditError) "Enter a valid positive number" else null
             )
 
             // ── Save ────────────────────────────────────────────────────────

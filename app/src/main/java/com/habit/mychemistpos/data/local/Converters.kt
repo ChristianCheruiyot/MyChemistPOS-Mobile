@@ -67,7 +67,11 @@ class Converters {
     fun fromPaymentMethod(value: PaymentMethod): String = value.name
 
     @TypeConverter
-    fun toPaymentMethod(value: String): PaymentMethod = PaymentMethod.valueOf(value)
+    fun toPaymentMethod(value: String): PaymentMethod = try {
+        PaymentMethod.valueOf(value.trim().uppercase())
+    } catch (_: Exception) {
+        PaymentMethod.CASH
+    }
 
     // ── OrderStatus ─────────────────────────────────────────────────────────
     @TypeConverter
