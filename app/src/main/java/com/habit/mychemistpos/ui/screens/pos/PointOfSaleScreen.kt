@@ -26,11 +26,14 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.ShoppingCart
@@ -92,11 +95,15 @@ fun PointOfSaleScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     var selectedTab by remember { mutableStateOf(0) } // 0 = Browse Products, 1 = Checkout Cart
+    var showRxRefField by remember { mutableStateOf(false) }
+    var showDiscountInput by remember { mutableStateOf(false) }
 
     if (state.receiptSaleId != null) {
         onNavigateToReceipt(state.receiptSaleId!!)
         viewModel.resetPOS()
         selectedTab = 0
+        showRxRefField = false
+        showDiscountInput = false
     }
 
     SyncLifecycleObserver {
@@ -339,179 +346,329 @@ fun PointOfSaleScreen(
                             // Checkout panel
                             item {
                                 ChemistCard {
+                                    // 1. Compact Prescription Notice & Optional Doctor/Ref
                                     if (state.hasRxItems) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .clip(RoundedCornerShape(Dimens.ButtonCorner))
-                                                .background(Color(0xFFFEF3C7))
-                                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                                            verticalAlignment = Alignment.CenterVertically
+                                        Surface(
+                                            color = Color(0xFFFEF3C7),
+                                            shape = RoundedCornerShape(8.dp),
+                                            modifier = Modifier.fillMaxWidth()
                                         ) {
-                                            Text("⚠️", style = MaterialTheme.typography.titleMedium)
-                                            Spacer(Modifier.width(8.dp))
-                                            Column {
-                                                Text(
-                                                    "Prescription Item(s) in Cart",
-                                                    style = MaterialTheme.typography.labelMedium,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFF92400E)
-                                                )
-                                                Text(
-                                                    "Verify doctor's prescription before dispensing",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = Color(0xFFB45309)
-                                                )
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    modifier = Modifier.weight(1f)
+                                                ) {
+                                                    Text("⚠️", style = MaterialTheme.typography.bodySmall)
+                                                    Spacer(Modifier.width(6.dp))
+                                                    Text(
+                                                        text = "Prescription item in cart",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = Color(0xFF92400E),
+                                                        fontWeight = FontWeight.SemiBold
+                                                    )
+                                                }
+                                                if (!showRxRefField && state.prescriptionRef.isBlank()) {
+                                                    Text(
+                                                        text = "+ Doctor / Ref",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = Color(0xFFB45309),
+                                                        fontWeight = FontWeight.Bold,
+                                                        modifier = Modifier
+                                                            .clickable { showRxRefField = true }
+                                                            .padding(start = 6.dp, top = 2.dp, bottom = 2.dp)
+                                                    )
+                                                }
                                             }
                                         }
-                                        Spacer(Modifier.height(Dimens.SpacingM))
-                                        ChemistTextField(
-                                            value = state.prescriptionRef,
-                                            onValueChange = viewModel::updatePrescriptionRef,
-                                            label = "Prescription Ref / Doctor (Optional)",
-                                            placeholder = "e.g., Dr. Kimani / RX-449"
-                                        )
-                                        Spacer(Modifier.height(Dimens.SpacingM))
-                                        HorizontalDivider(color = Border)
+
+                                        if (showRxRefField || state.prescriptionRef.isNotBlank()) {
+                                            Spacer(Modifier.height(6.dp))
+                                            ChemistTextField(
+                                                value = state.prescriptionRef,
+                                                onValueChange = viewModel::updatePrescriptionRef,
+                                                label = "Doctor / Rx Ref (Optional)",
+                                                placeholder = "e.g., Dr. Kimani / RX-449"
+                                            )
+                                        }
                                         Spacer(Modifier.height(Dimens.SpacingS))
                                     }
 
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text("Subtotal", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
-                                        Text(formatCurrency(state.subtotal), style = MaterialTheme.typography.titleMedium)
-                                    }
-                                    Spacer(Modifier.height(Dimens.SpacingS))
-                                    
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text("Discount", style = MaterialTheme.typography.bodyMedium, color = TextSecondary, modifier = Modifier.weight(1f))
-                                        ChemistTextField(
-                                            value = state.discountInput,
-                                            onValueChange = viewModel::onDiscountChange,
-                                            label = "",
-                                            placeholder = "0.00",
-                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                            textStyle = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.End),
-                                            leadingIcon = { Text("KES", color = TextHint, modifier = Modifier.padding(start = 12.dp)) },
-                                            modifier = Modifier.width(130.dp)
-                                        )
-                                    }
-                                    
-                                    Spacer(Modifier.height(Dimens.SpacingS))
-                                    HorizontalDivider(color = Border)
-                                    Spacer(Modifier.height(Dimens.SpacingS))
-                                    
+                                    // 2. Financial Summary (Subtotal, Discount, Total)
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text("Total", style = MaterialTheme.typography.titleLarge)
-                                        Text(formatCurrency(state.total), style = MaterialTheme.typography.displaySmall, color = Primary)
+                                        Text("Subtotal", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                                        Text(formatCurrency(state.subtotal), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                                    }
+
+                                    if (showDiscountInput || state.discount > 0) {
+                                        Spacer(Modifier.height(4.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text("Discount", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                                                Spacer(Modifier.width(6.dp))
+                                                Icon(
+                                                    imageVector = Icons.Outlined.Close,
+                                                    contentDescription = "Remove Discount",
+                                                    tint = Danger,
+                                                    modifier = Modifier
+                                                        .size(16.dp)
+                                                        .clickable {
+                                                            viewModel.onDiscountChange("")
+                                                            showDiscountInput = false
+                                                        }
+                                                )
+                                            }
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier
+                                                    .background(PageBackground, RoundedCornerShape(6.dp))
+                                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                            ) {
+                                                Text("- KES ", style = MaterialTheme.typography.labelSmall, color = Danger)
+                                                Box(modifier = Modifier.width(80.dp)) {
+                                                    BasicTextField(
+                                                        value = state.discountInput,
+                                                        onValueChange = viewModel::onDiscountChange,
+                                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                                        textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                                            textAlign = TextAlign.End,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = Danger
+                                                        ),
+                                                        singleLine = true,
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        decorationBox = { innerTextField ->
+                                                            if (state.discountInput.isEmpty()) {
+                                                                Text(
+                                                                    "0.00",
+                                                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                                                        textAlign = TextAlign.End,
+                                                                        color = TextHint
+                                                                    ),
+                                                                    modifier = Modifier.fillMaxWidth()
+                                                                )
+                                                            }
+                                                            innerTextField()
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.End
+                                        ) {
+                                            Text(
+                                                text = "+ Add Discount",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = Primary,
+                                                fontWeight = FontWeight.SemiBold,
+                                                modifier = Modifier
+                                                    .clickable { showDiscountInput = true }
+                                                    .padding(vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(Modifier.height(6.dp))
+                                    HorizontalDivider(color = Border.copy(alpha = 0.5f))
+                                    Spacer(Modifier.height(6.dp))
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text("Total Due", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                        Text(
+                                            formatCurrency(state.total),
+                                            style = MaterialTheme.typography.titleLarge,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = Primary
+                                        )
                                     }
 
                                     Spacer(Modifier.height(Dimens.SpacingM))
 
-                                    // Payment Methods (Cash, M-Pesa, Credit)
-                                    Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpacingS)) {
-                                        PaymentMethodChip(
-                                            method = PaymentMethod.CASH,
-                                            selected = state.paymentMethod == PaymentMethod.CASH,
-                                            onClick = { viewModel.setPaymentMethod(PaymentMethod.CASH) },
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                        PaymentMethodChip(
-                                            method = PaymentMethod.MPESA,
-                                            selected = state.paymentMethod == PaymentMethod.MPESA,
-                                            onClick = { viewModel.setPaymentMethod(PaymentMethod.MPESA) },
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                        PaymentMethodChip(
-                                            method = PaymentMethod.CREDIT,
-                                            selected = state.paymentMethod == PaymentMethod.CREDIT,
-                                            onClick = { viewModel.setPaymentMethod(PaymentMethod.CREDIT) },
-                                            modifier = Modifier.weight(1f)
-                                        )
+                                    // 3. Compact Segmented Payment Selector
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(Dimens.ButtonCorner))
+                                            .background(PageBackground)
+                                            .padding(3.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        listOf(
+                                            PaymentMethod.CASH to "💵 Cash",
+                                            PaymentMethod.MPESA to "📱 M-Pesa",
+                                            PaymentMethod.CREDIT to "📋 Credit"
+                                        ).forEach { (method, label) ->
+                                            val isSelected = state.paymentMethod == method
+                                            Box(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .background(if (isSelected) Primary else Color.Transparent)
+                                                    .clickable { viewModel.setPaymentMethod(method) }
+                                                    .padding(vertical = 8.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = label,
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                    color = if (isSelected) Color.White else TextSecondary
+                                                )
+                                            }
+                                        }
                                     }
 
-                                    // Payment Specific Details
+                                    // 4. Payment Method Details
                                     when (state.paymentMethod) {
                                         PaymentMethod.CASH -> {
-                                            Spacer(Modifier.height(Dimens.SpacingM))
+                                            Spacer(Modifier.height(Dimens.SpacingS))
+
                                             // Quick Cash Preset Buttons
                                             Row(
                                                 modifier = Modifier.fillMaxWidth(),
                                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                                             ) {
-                                                QuickCashChip(text = "Exact", onClick = viewModel::setExactCash, modifier = Modifier.weight(1.2f))
+                                                QuickCashChip(text = "Exact", onClick = viewModel::setExactCash, modifier = Modifier.weight(1.1f))
                                                 QuickCashChip(text = "+50", onClick = { viewModel.addQuickCash(50.0) }, modifier = Modifier.weight(1f))
                                                 QuickCashChip(text = "+100", onClick = { viewModel.addQuickCash(100.0) }, modifier = Modifier.weight(1f))
                                                 QuickCashChip(text = "+500", onClick = { viewModel.addQuickCash(500.0) }, modifier = Modifier.weight(1f))
-                                                QuickCashChip(text = "+1000", onClick = { viewModel.addQuickCash(1000.0) }, modifier = Modifier.weight(1.2f))
+                                                QuickCashChip(text = "+1000", onClick = { viewModel.addQuickCash(1000.0) }, modifier = Modifier.weight(1.1f))
                                             }
 
-                                            Spacer(Modifier.height(Dimens.SpacingM))
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Text("Amount Paid", style = MaterialTheme.typography.bodyMedium, color = TextSecondary, modifier = Modifier.weight(1f))
-                                                ChemistTextField(
-                                                    value = state.amountPaidInput,
-                                                    onValueChange = viewModel::onAmountPaidChange,
-                                                    label = "",
-                                                    placeholder = "0.00",
-                                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                                    textStyle = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.End),
-                                                    leadingIcon = { Text("KES", color = TextHint, modifier = Modifier.padding(start = 12.dp)) },
-                                                    modifier = Modifier.width(130.dp)
-                                                )
-                                            }
-                                            if (state.change > 0) {
-                                                Spacer(Modifier.height(Dimens.SpacingS))
+                                            Spacer(Modifier.height(Dimens.SpacingS))
+
+                                            // Tendered Cash Input Row
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text("Amount Tendered", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
                                                 Row(
-                                                    modifier = Modifier.fillMaxWidth(),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    modifier = Modifier
+                                                        .background(PageBackground, RoundedCornerShape(6.dp))
+                                                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                                                ) {
+                                                    Text("KES ", style = MaterialTheme.typography.labelSmall, color = TextHint)
+                                                    Box(modifier = Modifier.width(90.dp)) {
+                                                        BasicTextField(
+                                                            value = state.amountPaidInput,
+                                                            onValueChange = viewModel::onAmountPaidChange,
+                                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                                            textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                                                textAlign = TextAlign.End,
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = TextPrimary
+                                                            ),
+                                                            singleLine = true,
+                                                            modifier = Modifier.fillMaxWidth(),
+                                                            decorationBox = { innerTextField ->
+                                                                if (state.amountPaidInput.isEmpty()) {
+                                                                    Text(
+                                                                        "0.00",
+                                                                        style = MaterialTheme.typography.bodyLarge.copy(
+                                                                            textAlign = TextAlign.End,
+                                                                            color = TextHint
+                                                                        ),
+                                                                        modifier = Modifier.fillMaxWidth()
+                                                                    )
+                                                                }
+                                                                innerTextField()
+                                                            }
+                                                        )
+                                                    }
+                                                }
+                                            }
+
+                                            // Change to return or Short alert
+                                            if (state.change > 0) {
+                                                Spacer(Modifier.height(6.dp))
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clip(RoundedCornerShape(6.dp))
+                                                        .background(Success.copy(alpha = 0.12f))
+                                                        .padding(horizontal = 10.dp, vertical = 6.dp),
                                                     horizontalArrangement = Arrangement.SpaceBetween,
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
-                                                    Text("Change to give", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
-                                                    Text(formatCurrency(state.change), style = MaterialTheme.typography.titleMedium, color = Success, fontWeight = FontWeight.Bold)
+                                                    Text("Change to Return", style = MaterialTheme.typography.labelMedium, color = Success, fontWeight = FontWeight.SemiBold)
+                                                    Text(formatCurrency(state.change), style = MaterialTheme.typography.titleSmall, color = Success, fontWeight = FontWeight.Bold)
                                                 }
                                             } else if (state.amountPaid > 0 && state.amountPaid < state.total) {
-                                                Spacer(Modifier.height(Dimens.SpacingS))
+                                                Spacer(Modifier.height(6.dp))
                                                 Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.SpaceBetween
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clip(RoundedCornerShape(6.dp))
+                                                        .background(Danger.copy(alpha = 0.12f))
+                                                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
                                                 ) {
-                                                    Text("Short by", style = MaterialTheme.typography.bodyMedium, color = Danger)
-                                                    Text(formatCurrency(state.total - state.amountPaid), style = MaterialTheme.typography.titleSmall, color = Danger)
+                                                    Text("Short by", style = MaterialTheme.typography.labelMedium, color = Danger, fontWeight = FontWeight.SemiBold)
+                                                    Text(formatCurrency(state.total - state.amountPaid), style = MaterialTheme.typography.titleSmall, color = Danger, fontWeight = FontWeight.Bold)
                                                 }
                                             }
                                         }
                                         PaymentMethod.MPESA -> {
-                                            Spacer(Modifier.height(Dimens.SpacingM))
+                                            Spacer(Modifier.height(Dimens.SpacingS))
                                             ChemistTextField(
                                                 value = state.mpesaRef,
                                                 onValueChange = viewModel::updateMpesaRef,
                                                 label = "M-Pesa Transaction Code (Optional)",
-                                                placeholder = "e.g., QK8391039"
+                                                placeholder = "e.g., QK8391039",
+                                                leadingIcon = {
+                                                    Icon(Icons.Outlined.Receipt, contentDescription = null, tint = TextHint, modifier = Modifier.size(18.dp))
+                                                }
                                             )
                                         }
                                         PaymentMethod.CREDIT -> {
-                                            Spacer(Modifier.height(Dimens.SpacingM))
-                                            Text(
-                                                text = "Credit sale: Records ${formatCurrency(state.total)} balance to customer's account.",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = TextSecondary
-                                            )
+                                            Spacer(Modifier.height(Dimens.SpacingS))
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .background(PageBackground)
+                                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text("📋", style = MaterialTheme.typography.bodyMedium)
+                                                Spacer(Modifier.width(8.dp))
+                                                Text(
+                                                    text = "Records ${formatCurrency(state.total)} balance to customer's account.",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = TextSecondary
+                                                )
+                                            }
                                         }
                                     }
 
-                                    Spacer(Modifier.height(Dimens.SpacingL))
+                                    Spacer(Modifier.height(Dimens.SpacingM))
                                     
                                     val checkoutButtonText = when (state.paymentMethod) {
-                                        PaymentMethod.CREDIT -> "Complete Credit Sale"
-                                        PaymentMethod.MPESA -> "Complete M-Pesa Sale"
-                                        PaymentMethod.CASH -> "Complete Cash Sale"
+                                        PaymentMethod.CREDIT -> "Complete Credit Sale • ${formatCurrency(state.total)}"
+                                        PaymentMethod.MPESA -> "Complete M-Pesa Sale • ${formatCurrency(state.total)}"
+                                        PaymentMethod.CASH -> "Complete Cash Sale • ${formatCurrency(state.total)}"
                                     }
 
                                     ChemistPrimaryButton(
@@ -660,43 +817,6 @@ private fun CartItemRow(
 }
 
 @Composable
-private fun PaymentMethodChip(
-    method: PaymentMethod,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(targetValue = if (isPressed) 0.95f else 1.0f, label = "ChipScale")
-
-    Box(
-        modifier = modifier
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .clickable(
-                interactionSource = interactionSource,
-                indication = androidx.compose.foundation.LocalIndication.current,
-                onClick = onClick
-            )
-            .background(
-                if (selected) Primary else PageBackground,
-                RoundedCornerShape(Dimens.ButtonCorner)
-            )
-            .padding(vertical = Dimens.SpacingM),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = method.displayName,
-            style = MaterialTheme.typography.titleSmall,
-            color = if (selected) Color.White else TextPrimary
-        )
-    }
-}
-
-@Composable
 private fun QuickCashChip(
     text: String,
     onClick: () -> Unit,
@@ -712,19 +832,19 @@ private fun QuickCashChip(
                 scaleX = scale
                 scaleY = scale
             }
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(6.dp))
             .background(Color(0xFFE0F2FE).copy(alpha = 0.7f))
             .clickable(
                 interactionSource = interactionSource,
                 indication = androidx.compose.foundation.LocalIndication.current,
                 onClick = onClick
             )
-            .padding(vertical = 8.dp),
+            .padding(vertical = 6.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
             color = Primary
         )
