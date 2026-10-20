@@ -24,8 +24,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Search
@@ -48,6 +46,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.habit.mychemistpos.data.model.InventoryFilter
@@ -226,8 +225,7 @@ fun InventoryListScreen(
                             items(state.items, key = { it.id }) { item ->
                                 InventoryItemCard(
                                     item = item,
-                                    onClick = { viewModel.openEditSheet(item) },
-                                    onDelete = { viewModel.requestDelete(item) }
+                                    onClick = { viewModel.openEditSheet(item) }
                                 )
                             }
                         }
@@ -266,82 +264,84 @@ fun InventoryListScreen(
 @Composable
 private fun InventoryItemCard(
     item: InventoryItem,
-    onClick: () -> Unit,
-    onDelete: () -> Unit
+    onClick: () -> Unit
 ) {
-    ChemistCard(onClick = onClick) {
+    ChemistCard(
+        onClick = onClick,
+        contentPadding = 10.dp
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             ProductImage(
                 imageUrl = item.imageUrl,
                 contentDescription = item.name,
-                modifier = Modifier.size(56.dp),
-                shape = RoundedCornerShape(Dimens.CardCorner)
+                modifier = Modifier.size(44.dp),
+                shape = RoundedCornerShape(8.dp)
             )
             Spacer(Modifier.width(Dimens.SpacingM))
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = item.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(Modifier.height(Dimens.SpacingXs))
-                Text(
-                    text = "${item.category} • Batch: ${item.batchNumber}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
-                )
-                Spacer(Modifier.height(Dimens.SpacingS))
-                
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    StatusBadge(
-                        text = "${item.quantity} ${item.unit}",
-                        type = stockBadgeType(item.quantity, item.reorderLevel)
+                    Text(
+                        text = item.name,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
                     if (item.requiresPrescription) {
-                        Spacer(Modifier.padding(horizontal = Dimens.SpacingS))
+                        Spacer(Modifier.width(4.dp))
                         StatusBadge(text = "Rx", type = BadgeType.WARNING)
                     }
                 }
-                
-                if (item.expiryDate != null) {
-                    Spacer(Modifier.height(Dimens.SpacingS))
+                Spacer(Modifier.height(2.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = item.category,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (item.batchNumber.isNotBlank()) {
+                        Text(
+                            text = " • #${item.batchNumber}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextHint,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                if (item.expiryDate != null && (item.isExpiringSoon || item.isExpired)) {
+                    Spacer(Modifier.height(2.dp))
                     Text(
                         text = item.expiryDate.expiryLabel(),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (item.isExpiringSoon || item.isExpired) Danger else TextHint
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Danger,
+                        fontWeight = FontWeight.Medium
                     )
                 }
             }
             
+            Spacer(Modifier.width(Dimens.SpacingS))
+
             Column(
-                horizontalAlignment = Alignment.End,
-                modifier = Modifier.padding(start = Dimens.SpacingM)
+                horizontalAlignment = Alignment.End
             ) {
                 Text(
                     text = formatCurrencyCompact(item.sellingPrice),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
                     color = Primary
                 )
-                Spacer(Modifier.height(Dimens.SpacingXs))
-                Text(
-                    text = "Cost: ${formatCurrencyCompact(item.buyingPrice)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextHint
+                Spacer(Modifier.height(4.dp))
+                StatusBadge(
+                    text = "${item.quantity} ${item.unit}",
+                    type = stockBadgeType(item.quantity, item.reorderLevel)
                 )
-                Spacer(Modifier.height(Dimens.SpacingM))
-                Row {
-                    IconButton(onClick = onClick, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Outlined.Edit, "Edit", modifier = Modifier.size(20.dp), tint = TextSecondary)
-                    }
-                    IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Outlined.Delete, "Delete", modifier = Modifier.size(20.dp), tint = Danger)
-                    }
-                }
             }
         }
     }
